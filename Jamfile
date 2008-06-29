@@ -1,4 +1,5 @@
 alias sdl        : /site-config//sdl ;
+alias sdl_main   : /site-config//sdl_main ;
 alias stb_image  : ../stb_image//stb_image ;
 alias stb_sbox   : ../stb_sbox//stb_sbox ;
 alias stb_vorbis : ../stb_vorbis//stb_vorbis ;
@@ -6,7 +7,7 @@ alias stb_vorbis : ../stb_vorbis//stb_vorbis ;
 exe arithmetix
     :
         [ glob *.cpp ]
-        sdl stb_image stb_sbox stb_vorbis
+        sdl sdl_main stb_image stb_sbox stb_vorbis
     :
         <variant>release:<runtime-link>static
         <variant>release:<user-interface>gui

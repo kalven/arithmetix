@@ -8,24 +8,22 @@
 #include "sdlw_audio.hpp"
 #include "state.hpp"
 
+#include <SDL/SDL_main.h>
+
 // States
 #include "game.hpp"
 #include "title.hpp"
 #include "credits.hpp"
 #include "hiscore.hpp"
 
-#ifdef main
-#undef main
-#endif
-
 state_machine sm;
 
-#if defined(NDEBUG) && defined(__WIN32__)
-#include <windows.h>
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR cmdline, int)
-#else
-int main()
+#ifdef __cplusplus // Silly, of course it's C++!
+extern "C"
 #endif
+{
+
+int main(int argc, char* argv[])
 {
     SDL_Event event;
     bool done = false;
@@ -76,4 +74,6 @@ int main()
     }
 
     return 0;
+}
+
 }
