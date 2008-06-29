@@ -44,7 +44,7 @@ class font
 
     int get_width(const std::wstring & text, unsigned chars = unsigned(-1))
     {
-        chars = std::min(text.size(), chars);
+        chars = std::min(static_cast<unsigned>(text.size()), chars);
 
         int width = 0;
 
