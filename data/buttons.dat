@@ -1,0 +1,7 @@
+def { bg:btn bg-src:0,0,72,39 bg-hot:btn bg-hot-src:0,39,72,39 fg:btntext }
+continue:def { fg-src:0,0,58,18 }
+hiscores:def { fg-src:0,18,58,18 }
+play:def     { fg-src:0,36,58,18 }
+quit:def     { fg-src:0,54,58,18 }
+credits:def  { fg-src:0,72,58,18 }
+stat:def     { fg-src:0,90,58,18 }

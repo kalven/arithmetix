@@ -1,0 +1,27 @@
+Must do's
+
+* New digit graphics
+* Block sheen (new animation system)
+* Score calculation
+* Icon
+* Special moves (show hints (time or turn based))
+* Status during game
+* Rename .sbox to something else
+* Installer
+
+Might do's
+
+* Online hiscores
+* Ingame tutorial
+* Store hiscore in user directory?
+* Stats
+* Other game modes (time attack?)
+* Replace all the 9's with proper board width/height
+
+Done
+
+* Window caption
+* Get rid of console in release mod
+* Sound effects
+* Quit button in game
+* Ingame credits
