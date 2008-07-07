@@ -14,6 +14,7 @@ game::game(state_machine & sm) :
   m_selx(-1),
   m_sely(-1),
   m_queue(queue_size),
+  m_active_special(0),
   m_sm(sm)
 {
     m_quit.pos() = rect(340,380,72,39);
@@ -41,55 +42,47 @@ void game::activate_state(const state_arg & args)
         m_specials[0].m_type = special_move::shuffle;
         m_specials[1].m_type = special_move::nuke;
         m_specials[2].m_type = special_move::clear_digit;
+        m_active_special = 0;
         on_event(get_mouse_motion_event());
     }
     else
         assert(0 && "game::activate_state called with invalid args");
-
 }
 
 void game::on_event(const SDL_Event & event)
 {
     if(event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT)
     {
-        if(m_selx != -1 && m_sely != -1 && m_board.get_digit(m_selx, m_sely) == -1)
+        if(in_board())
         {
-            int board_digit = m_board.get_3x3_sum(m_selx, m_sely) % 10;
-            int queue_digit = m_queue.take();
-
-            if(board_digit == queue_digit)
+            if(m_active_special)
             {
-                // Ding, clear the 3x3 square
-                int cleared = 0;
-                int lx = std::max(0,m_selx-1); int hx = std::min(9,m_selx+2);
-                int ly = std::max(0,m_sely-1); int hy = std::min(9,m_sely+2);
+                const int digit = m_board.get_digit(m_selx, m_sely);
 
-                for(int y = ly; y != hy; ++y)
-                    for(int x = lx; x != hx; ++x)
-                    {
-                        const int digit = m_board.get_digit(x,y);
-                        if(digit != -1)
-                        {
-                            cleared++;
-                            m_anims.push_back(tile_anim(m_digits, digit, x, y));
-                            m_board.set_digit(x, y, -1);
-                        }
-                    }
-
-                if(cleared > 3)
+                // Attempt a special move
+                if(m_active_special->m_type == special_move::nuke
+                    && digit == -1)
                 {
-                    m_bonus += cleared * 100;
-                    m_bonusanims.push_back(bonus_anim(m_bonus_gfx, cleared, board_xpos + (m_selx*32) - 29, board_ypos + (m_sely*32) - 8));
+                    clear_3x3(m_selx, m_sely);
+                    m_active_special->m_type = special_move::none;
                 }
 
-                play_sample(m_clear_snd);
+                if(m_active_special->m_type == special_move::clear_digit
+                    && digit != -1)
+                {
+                    for(int y = 0; y != 9; ++y)
+                        for(int x = 0; x != 9; ++x)
+                            if(m_board.get_digit(x, y) == digit)
+                                m_board.set_digit(x, y, -1);
+
+                    m_active_special->m_type = special_move::none;
+                }
+
+                m_active_special = 0;
             }
             else
             {
-                // Oh noes, place the queue digit
-                m_board.set_digit(m_selx, m_sely, queue_digit);
-                if(m_board.get_cleared() == 0)
-                    end_game();
+                do_digit();
             }
 
             if(m_queue.digits_left() == 0 || m_board.get_filled() == 0)
@@ -152,7 +145,7 @@ void game::on_draw(sdl_surface & screen)
             ++ai;
     }
 
-    if(m_selx != -1 && m_sely != -1 && m_board.get_digit(m_selx, m_sely) == -1)
+    if(in_board() && m_board.get_digit(m_selx, m_sely) == -1)
     {
         // Draw the selection
         int lx = std::max(0, m_selx - 1); int hx = std::min(9, m_selx + 2);
@@ -227,8 +220,15 @@ void game::do_special(special_move& special)
 {
     switch(special.m_type)
     {
+        case special_move::none:
+            break;
         case special_move::nuke:
-            std::cout << "nuke" << std::endl;
+        case special_move::clear_digit:
+            // These require further input from the user. In the case
+            // of a nuke, an empty square must be selected. In the
+            // case of clear_digit, a digit must be selected. Here we
+            // just mark the special move as "active".
+            m_active_special = &special;
             break;
         case special_move::shuffle:
         {
@@ -253,15 +253,64 @@ void game::do_special(special_move& special)
                         m_board.set_digit(x, y, *i++);
 
             special.m_type = special_move::none;
-
             break;
         }
-        case special_move::clear_digit:
-            std::cout << "clear_digit" << std::endl;
-            break;
-        default:
-            break;
     }
+}
+
+void game::do_digit()
+{
+    if(in_board() && m_board.get_digit(m_selx, m_sely) == -1)
+    {
+        int board_digit = m_board.get_3x3_sum(m_selx, m_sely) % 10;
+        int queue_digit = m_queue.take();
+
+        if(board_digit == queue_digit)
+        {
+            // Ding, clear the 3x3 square
+            int cleared = clear_3x3(m_selx, m_sely);
+            if(cleared > 3)
+            {
+                m_bonus += cleared * 100;
+                m_bonusanims.push_back(bonus_anim(m_bonus_gfx, cleared, board_xpos + (m_selx*32) - 29, board_ypos + (m_sely*32) - 8));
+            }
+
+            play_sample(m_clear_snd);
+        }
+        else
+        {
+            // Oh noes, place the queue digit
+            m_board.set_digit(m_selx, m_sely, queue_digit);
+            if(m_board.get_cleared() == 0)
+                end_game();
+        }
+    }
+}
+
+int game::clear_3x3(int xpos, int ypos)
+{
+    int cleared = 0;
+    int lx = std::max(0,xpos-1); int hx = std::min(9,xpos+2);
+    int ly = std::max(0,ypos-1); int hy = std::min(9,ypos+2);
+
+    for(int y = ly; y != hy; ++y)
+        for(int x = lx; x != hx; ++x)
+        {
+            const int digit = m_board.get_digit(x,y);
+            if(digit != -1)
+            {
+                cleared++;
+                m_anims.push_back(tile_anim(m_digits, digit, x, y));
+                m_board.set_digit(x, y, -1);
+            }
+        }
+
+    return cleared;
+}
+
+bool game::in_board() const
+{
+    return m_selx != -1 && m_sely != -1;
 }
 
 void game::end_game()

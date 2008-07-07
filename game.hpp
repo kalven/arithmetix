@@ -112,6 +112,10 @@ class game : public state
     void on_draw(sdl_surface & screen);
 
     void do_special(special_move& special);
+    void do_digit();
+    int clear_3x3(int x, int y);
+
+    bool in_board() const;
 
     void end_game();
 
@@ -129,6 +133,7 @@ class game : public state
     queue                 m_queue;
     button                m_quit;
     special_move          m_specials[3];
+    special_move *        m_active_special;
     state_machine &       m_sm;
     std::list<tile_anim>  m_anims;
     std::list<bonus_anim> m_bonusanims;
