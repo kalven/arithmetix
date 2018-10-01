@@ -1,48 +1,44 @@
 #include "resource.hpp"
 
-#include "sboxread.h"
-#include "sboxkit.h"
-
-#include <stdexcept>
 #include <cassert>
+#include <cstdio>
+#include <fstream>
+#include <map>
+#include <stdexcept>
 #include <string>
 
-static SboxHandle * sbox = 0;
+static std::map<std::string, std::string> cached_resources;
 
-static void init_sbox()
-{
-    assert(sbox == 0);
-    if(SboxReadOpenFilename(&sbox, "arithmetix.sbox", "arithmetix-files") != SBOX_OK)
-        throw std::runtime_error("Arithmetix data file error");
+FILE* get_resource_file(const char* resource) {
+  FILE* f = std::fopen(resource, "rb");
+  if (f == nullptr) {
+    throw std::runtime_error("Failed to open file:" + std::string(resource));
+  }
+  return f;
 }
 
-FILE * get_resource_file(const char * resource)
-{
-    if(sbox == 0)
-        init_sbox();
+void* get_resource_mem(const char* resource, int* length) {
+  auto it = cached_resources.find(resource);
+  if (it == cached_resources.end()) {
+    std::ifstream in(resource, std::ifstream::binary);
 
-    unsigned sbox_item = SboxkitFindString(sbox, const_cast<char*>(resource));
+    if (!in.is_open()) {
+      throw std::runtime_error("Failed to open file: " + std::string(resource));
+    }
 
-    if(sbox_item == SBOXKIT_NOTFOUND)
-        throw std::runtime_error(std::string(resource) + " not found in sbox");
-    if(SboxSeekItem(sbox, sbox_item, 0) != SBOX_OK)
-        throw std::runtime_error(std::string(resource) + " seek error");
+    std::string content;
+    char buffer[2048];
 
-    return SboxFileHandle(sbox);
-}
+    for (;;) {
+      in.read(buffer, sizeof(buffer));
+      if (in.gcount() == 0) {
+        break;
+      }
+      content.append(buffer, in.gcount());
+    }
+    it = cached_resources.emplace(resource, std::move(content)).first;
+  }
 
-void * get_resource_mem(const char * resource, int * length)
-{
-    assert(length);
-
-    if(sbox == 0)
-        init_sbox();
-
-    void * res;
-    unsigned item_length = SboxkitGetByString(&res, sbox, const_cast<char*>(resource));
-    if(item_length == 0)
-        throw std::runtime_error(std::string(resource) + " not found in sbox");
-
-    *length = item_length;
-    return res;
+  *length = static_cast<int>(it->second.size());
+  return it->second.data();
 }
